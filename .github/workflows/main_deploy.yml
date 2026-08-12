@@ -1,0 +1,76 @@
+name: Deploy and Validate Metadata
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  sfdxvalidate:
+    name: "Run SFDX Validate"
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install SFDX CLI and sfdx-git-delta plugin
+        # sfdx-git-delta permet de calculer le delta entre la branche courante
+        # et la branche ciblée, pour ne déployer que ce qui a réellement changé.
+        # Doc : https://github.com/scolladon/sfdx-git-delta
+        run: |
+          npm install -g @salesforce/cli@latest
+          echo "y" | npm install sfdx-git-delta@3.3.0 -g
+
+      - name: 'Authentification Salesforce'
+        # L'URL d'authentification SFDX (obtenue via `sf org display --verbose --json`
+        # sur l'org cible) est stockée dans le secret GitHub SFDX_AUTH_URL du repo.
+        # Elle ne doit jamais être écrite en clair dans le code ou les logs.
+        env:
+          SFDX_AUTH_URL: ${{ secrets.SFDX_AUTH_URL }}
+        run: |
+          echo "$SFDX_AUTH_URL" > ./SFDX_AUTH_URL.txt
+          sf org login sfdx-url --sfdx-url-file ./SFDX_AUTH_URL.txt --alias target-org --set-default
+          rm ./SFDX_AUTH_URL.txt
+
+      - name: 'Generate metadata delta pull request'
+        # Génère un package.xml ne contenant que les métadonnées modifiées
+        # entre le commit précédent et le commit courant.
+        run: |
+          mkdir changed-sources
+          sgd --to "HEAD" --from "HEAD^" --output changed-sources/ --generate-delta --source force-app
+
+      - name: 'Valider le déploiement (pull request)'
+        # Sur une pull request, on valide le déploiement (check-only) sans
+        # déployer réellement, pour détecter les erreurs avant le merge.
+        if: github.event_name == 'pull_request'
+        run: |
+          sf project deploy validate \
+            --manifest changed-sources/package/package.xml \
+            --target-org target-org \
+            --test-level RunLocalTests \
+            --wait 30
+
+      - name: 'Déployer les métadonnées sur la branche main'
+        # Sur un push (merge) vers main, on déploie réellement les métadonnées,
+        # avec exécution des tests locaux (flag RunLocalTests demandé par Fasha).
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          sf project deploy start \
+            --manifest changed-sources/package/package.xml \
+            --target-org target-org \
+            --test-level RunLocalTests \
+            --wait 30
