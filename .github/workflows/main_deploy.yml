@@ -33,7 +33,7 @@ jobs:
         # Doc : https://github.com/scolladon/sfdx-git-delta
         run: |
           npm install -g @salesforce/cli@latest
-          echo "y" | npm install sfdx-git-delta@3.3.0 -g
+          echo "y" | sf plugins install sfdx-git-delta
 
       - name: 'Authentification Salesforce'
         # L'URL d'authentification SFDX (obtenue via `sf org display --verbose --json`
@@ -51,7 +51,7 @@ jobs:
         # entre le commit précédent et le commit courant.
         run: |
           mkdir changed-sources
-          sgd --to "HEAD" --from "HEAD^" --output changed-sources/ --generate-delta --source-dir force-app
+          sf sgd source delta --to "HEAD" --from "HEAD^" --output-dir changed-sources/ --generate-delta --source-dir force-app
 
       - name: 'Valider le déploiement (pull request)'
         # Sur une pull request, on valide le déploiement (check-only) sans
