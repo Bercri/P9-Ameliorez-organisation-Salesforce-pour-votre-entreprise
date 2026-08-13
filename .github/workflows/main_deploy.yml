@@ -56,21 +56,32 @@ jobs:
       - name: 'Valider le déploiement (pull request)'
         # Sur une pull request, on valide le déploiement (check-only) sans
         # déployer réellement, pour détecter les erreurs avant le merge.
+        # Si le delta ne contient aucune métadonnée Salesforce (ex: seul un
+        # fichier de config a changé), on ne lance pas de déploiement vide.
         if: github.event_name == 'pull_request'
         run: |
-          sf project deploy validate \
-            --manifest changed-sources/package/package.xml \
-            --target-org target-org \
-            --test-level RunLocalTests \
-            --wait 30
+          if grep -q '<types>' changed-sources/package/package.xml; then
+            sf project deploy validate \
+              --manifest changed-sources/package/package.xml \
+              --target-org target-org \
+              --test-level RunLocalTests \
+              --wait 30
+          else
+            echo "Aucune métadonnée Salesforce modifiée, rien à valider."
+          fi
 
       - name: 'Déployer les métadonnées sur la branche main'
         # Sur un push (merge) vers main, on déploie réellement les métadonnées,
         # avec exécution des tests locaux (flag RunLocalTests demandé par Fasha).
+        # Même garde-fou que ci-dessus pour éviter un déploiement vide.
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          sf project deploy start \
-            --manifest changed-sources/package/package.xml \
-            --target-org target-org \
-            --test-level RunLocalTests \
-            --wait 30
+          if grep -q '<types>' changed-sources/package/package.xml; then
+            sf project deploy start \
+              --manifest changed-sources/package/package.xml \
+              --target-org target-org \
+              --test-level RunLocalTests \
+              --wait 30
+          else
+            echo "Aucune métadonnée Salesforce modifiée, rien à déployer."
+          fi
