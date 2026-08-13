@@ -73,3 +73,4 @@ public class TestDataFactory {
         return orders;
     }
 }
+// Commentaire de test CI/CD - verification pipeline complete
