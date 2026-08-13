@@ -51,7 +51,7 @@ jobs:
         # entre le commit précédent et le commit courant.
         run: |
           mkdir changed-sources
-          sgd --to "HEAD" --from "HEAD^" --output changed-sources/ --generate-delta --source force-app
+          sgd --to "HEAD" --from "HEAD^" --output changed-sources/ --generate-delta --source-dir force-app
 
       - name: 'Valider le déploiement (pull request)'
         # Sur une pull request, on valide le déploiement (check-only) sans
