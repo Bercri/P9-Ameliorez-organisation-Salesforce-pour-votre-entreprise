@@ -39,7 +39,7 @@ public class TestDataFactory {
         Integer numberOfOrders,
         Decimal unitPrice,
         Integer quantity,
-        Boolean activate
+        Boolean shouldActivate
     ) {
         List<Order> orders = new List<Order>();
         for (Integer i = 0; i < numberOfOrders; i++) {
@@ -63,7 +63,7 @@ public class TestDataFactory {
         }
         insert items;
 
-        if (activate) {
+        if (shouldActivate) {
             for (Order o : orders) {
                 o.Status = 'Activated';
             }
