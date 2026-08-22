@@ -22,10 +22,16 @@ public without sharing class UpdateAccounts {
     private static final String STATUS_ACTIVATED = 'Activated';
 
     public static void recalculateChiffreAffaires(Set<Id> accountIds) {
+        // Garde-fou : évite une requête/DML inutile si aucun compte à traiter
+        // (ex : appelé depuis un trigger sans commande nouvellement activée).
         if (accountIds == null || accountIds.isEmpty()) {
             return;
         }
 
+        // Coeur de la bulkification : UNE seule requête agrégée (GROUP BY),
+        // quel que soit le nombre de comptes/commandes dans accountIds.
+        // C'est cette requête qui remplace l'ancienne boucle
+        // "1 SELECT par commande" qui dépassait la limite de gouverneur.
         Map<Id, Decimal> totalByAccountId = new Map<Id, Decimal>();
         for (AggregateResult result : [
             SELECT AccountId accId, SUM(TotalAmount) total
@@ -37,6 +43,9 @@ public without sharing class UpdateAccounts {
             totalByAccountId.put((Id) result.get('accId'), (Decimal) result.get('total'));
         }
 
+        // On reconstruit la liste à partir de accountIds (pas seulement des
+        // résultats de l'agrégat) pour remettre à 0 le CA d'un compte qui
+        // n'a plus aucune commande Activated (ex : commande désactivée).
         List<Account> accountsToUpdate = new List<Account>();
         for (Id accountId : accountIds) {
             accountsToUpdate.add(new Account(
@@ -47,6 +56,7 @@ public without sharing class UpdateAccounts {
             ));
         }
 
+        // Un seul DML pour tous les comptes du lot (au lieu d'un update par compte).
         update accountsToUpdate;
     }
 }

@@ -7,12 +7,20 @@
 @isTest
 public class TestDataFactory {
 
+    /**
+     * Crée un compte de test minimal, prêt à recevoir des commandes.
+     */
     public static Account createAccount(String accountName) {
         Account acc = new Account(Name = accountName);
         insert acc;
         return acc;
     }
 
+    /**
+     * Crée un produit de test et son entrée dans le Price Book standard, au
+     * prix unitaire demandé. Nécessaire pour pouvoir créer des OrderItem
+     * (une commande ne peut pas avoir de ligne sans PricebookEntry associée).
+     */
     public static PricebookEntry createStandardPricebookEntry(Decimal unitPrice) {
         Product2 product = new Product2(Name = 'Chemise Verte longue XYX', Family = 'Chemise');
         insert product;
@@ -73,4 +81,3 @@ public class TestDataFactory {
         return orders;
     }
 }
-// Commentaire de test CI/CD - verification pipeline complete
